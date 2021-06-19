@@ -28,18 +28,20 @@ impl ConsoleGameEngine {
         Ok(())
     }
 
-    fn start(&mut self, on_user_create: fn(screen: &Vec<char>) -> Result<Vec<char>>, on_user_update: fn(screen: &Vec<char>) -> Result<Vec<char>>) -> Result<()> {
+    fn start(&mut self, on_user_create: fn(game: &mut Self) -> bool, on_user_update: fn(game: &mut Self) -> bool) -> Result<()> {
         let mut stdout = stdout();
 
-        self.screen = on_user_create(&self.screen)?;
+        //self.screen = on_user_create(&self)?;
+        let mut b_atom_active = on_user_create(self);
 
-        loop {
+        while b_atom_active {
             // handle timing
 
             // get user input
 
             // todo: pass in elapsed_time
-            self.screen = on_user_update(&self.screen)?;
+            //self.screen = on_user_update(&self.screen)?;
+            b_atom_active = on_user_update(self);
 
             // todo: set console title to something
             stdout.execute(cursor::MoveTo(0, 0))?;
@@ -48,6 +50,12 @@ impl ConsoleGameEngine {
                 stdout.write(format!("{}", screen_char).as_bytes())?;
             }
         }
+
+        Ok(())
+    }
+
+    fn draw(&mut self, x: usize, y: usize, ch: char) {
+        self.screen[y * self.width + x] = ch;
     }
 }
 
@@ -55,14 +63,26 @@ fn main() -> Result<()> {
     let mut game = ConsoleGameEngine::new(40, 120);
     game.construct_console()?;
 
-    let on_user_create = |screen: &Vec<char>| -> Result<Vec<char>> {
-        let updated = screen.iter().map(|_| 'c').collect();
-        Ok(updated)
+    let on_user_create = |game: &mut ConsoleGameEngine| -> bool {
+        //let updated = game.iter().map(|_| 'c').collect();
+        //Ok(updated)
+        for x in 0..game.width {
+            for y in 0..game.height {
+                game.draw(x, y, 'd');
+            }
+        }
+        true
     };
 
-    let on_user_update = |screen: &Vec<char>| -> Result<Vec<char>> {
-        let updated = screen.iter().map(|_| 'd').collect();
-        Ok(updated)
+    let on_user_update = |game: &mut ConsoleGameEngine| -> bool {
+        //let updated = game.iter().map(|_| 'd').collect();
+        //Ok(updated)
+        for x in 0..game.width {
+            for y in 0..game.height {
+                game.draw(x, y, 'r');
+            }
+        }
+        true
     };
 
     game.start(on_user_create, on_user_update)?;
