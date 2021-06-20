@@ -1,5 +1,5 @@
 use std::io::{stdout, Write};
-use crossterm::{cursor, execute, ExecutableCommand, Result, terminal};
+use crossterm::{cursor, event, execute, ExecutableCommand, Result, terminal};
 use rand::Rng;
 
 struct ConsoleGameEngine<T: Rules + Copy> {
@@ -37,13 +37,18 @@ where T : Rules + Copy{
 
         let mut b_atom_active = self.rules.on_user_create(&mut self.painter);
 
+        let mut t_p_1 = std::time::Instant::now();
+        let mut t_p_2 = std::time::Instant::now();
+
         while b_atom_active {
             // handle timing
+            t_p_2 = std::time::Instant::now();
+            let elapsed_time = t_p_2.duration_since(t_p_1).as_secs_f64();
+            t_p_1 = t_p_2;  
 
             // get user input (here? will that work?)
 
-            // todo: pass in elapsed_time (why?)
-            b_atom_active = self.rules.on_user_update(&mut self.painter);
+            b_atom_active = self.rules.on_user_update(&mut self.painter, elapsed_time).unwrap();
 
             // todo: set console title to something
             stdout.execute(cursor::MoveTo(0, 0))?;
@@ -52,7 +57,7 @@ where T : Rules + Copy{
                 stdout.write(format!("{}", screen_char).as_bytes())?;
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            //std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
         Ok(())
@@ -77,7 +82,7 @@ impl Painter {
 
 trait Rules {
     fn on_user_create(self, painter: &mut Painter) -> bool;
-    fn on_user_update(self, painter: &mut Painter) -> bool;
+    fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64) -> Option<bool>;
 }
 
 #[derive(Copy, Clone)]
@@ -97,11 +102,36 @@ impl MyRules {
 
 impl Rules for MyRules {
     fn on_user_create(self, painter: &mut Painter) -> bool { true }
-    fn on_user_update(self, painter: &mut Painter) -> bool { 
-        let mut rng = rand::thread_rng();
-        painter.fill(0, 0, painter.width, painter.height, ' ');
+    fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64) -> Option<bool> { 
+        // todo: extract this into something that gives
+        // on_user_update a list of keys that are pressed?
+        if event::poll(std::time::Duration::from_millis(25)).ok()? {
+            match event::read().ok()? {
+                event::Event::Key(event::KeyEvent {
+                    code: event::KeyCode::Char('a'),
+                    modifiers: event::KeyModifiers::NONE,
+                }) => self.f_player_x = self.f_player_x - 15.0 * elapsed_time,
+                event::Event::Key(event::KeyEvent {
+                    code: event::KeyCode::Char('d'),
+                    modifiers: event::KeyModifiers::NONE,
+                }) => self.f_player_x = self.f_player_x + 15.0  * elapsed_time,
+                event::Event::Key(event::KeyEvent {
+                    code: event::KeyCode::Char('w'),
+                    modifiers: event::KeyModifiers::NONE,
+                }) => self.f_player_y = self.f_player_y - 15.0 * elapsed_time,
+                event::Event::Key(event::KeyEvent {
+                    code: event::KeyCode::Char('s'),
+                    modifiers: event::KeyModifiers::NONE,
+                }) => self.f_player_y = self.f_player_y + 15.0 * elapsed_time,
+                _ => (),
+            }
+        }
 
-        for x in (0..painter.width - 5).step_by(5) {
+        //let mut rng = rand::thread_rng();
+        painter.fill(0, 0, painter.width, painter.height, ' ');
+        painter.fill(self.f_player_x as usize, self.f_player_y as usize, self.f_player_x as usize + 3, self.f_player_y as usize + 3, '$');
+
+        /*for x in (0..painter.width - 5).step_by(5) {
             for y in (0..painter.height - 5).step_by(5) {
                 let ch = match rng.gen_range(0..5) {
                     0 => 'd',
@@ -113,15 +143,15 @@ impl Rules for MyRules {
                 };
                 painter.fill(x, y, x + 5, y + 5, ch);
             }
-        }
+        }*/
         
-        true 
+        Some(true) 
     }
 }
 
 fn main() -> Result<()> {
     let rules = MyRules::new();
-    let mut game = ConsoleGameEngine::new(40, 120, rules);//ConsoleGameEngine::new(40, 120, rules);
+    let mut game = ConsoleGameEngine::new(40, 120, rules);
     game.construct_console()?;
     game.start()?;
 
