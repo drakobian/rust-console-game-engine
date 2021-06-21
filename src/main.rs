@@ -4,7 +4,6 @@ use crossterm::style::{
 };
 use crossterm::{cursor, execute, terminal, ExecutableCommand, Result};
 use std::io::{stdout, Write};
-//use rand::Rng;
 
 struct ConsoleGameEngine<T: Rules> {
     height: usize,
@@ -65,8 +64,6 @@ where
             for screen_char in &self.painter.screen {
                 stdout.write(format!("{}", screen_char).as_bytes())?;
             }
-
-            //std::thread::sleep(std::time::Duration::from_millis(1000));
         }
 
         Ok(())
