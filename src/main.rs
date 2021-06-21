@@ -19,7 +19,7 @@ where
     fn new(height: usize, width: usize, rules: T) -> ConsoleGameEngine<T> {
         ConsoleGameEngine {
             height,
-            painter: Painter::new(height, width), //Painter{ height, screen: vec![' '; width * height], width },
+            painter: Painter::new(height, width),
             rules,
             width,
         }
@@ -40,23 +40,19 @@ where
     fn start(&mut self) -> Result<()> {
         let mut stdout = stdout();
 
-        let mut b_atom_active = self.rules.on_user_create(&mut self.painter);
+        self.rules.on_user_create(&mut self.painter);
 
         let mut t_p_1 = std::time::Instant::now();
         let mut t_p_2: std::time::Instant;
 
-        while b_atom_active {
-            // handle timing
+        loop {
             t_p_2 = std::time::Instant::now();
             let elapsed_time = t_p_2.duration_since(t_p_1).as_secs_f64();
             t_p_1 = t_p_2;
 
             // get user input (here? will that work?)
 
-            b_atom_active = self
-                .rules
-                .on_user_update(&mut self.painter, elapsed_time)
-                .unwrap();
+            self.rules.on_user_update(&mut self.painter, elapsed_time);
 
             // todo: set console title to something
             stdout.execute(cursor::MoveTo(0, 0))?;
@@ -65,8 +61,6 @@ where
                 stdout.write(format!("{}", screen_char).as_bytes())?;
             }
         }
-
-        Ok(())
     }
 }
 
@@ -107,28 +101,13 @@ impl Painter {
 }
 
 trait Rules {
-    fn on_user_create(&mut self, painter: &mut Painter) -> bool;
-    fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64) -> Option<bool>;
+    fn on_user_create(&mut self, painter: &mut Painter);
+    fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64);
 }
 
-
-/*enum CellPath {
-    Z = 0x00,
-    N = 0x01,
-    E = 0x02,
-    S = 0x04,
-    W = 0x08,
-    V = 0x10
-}*/
-
-// may need this bitwise later, or just figure out how to do without :)
 #[derive(Clone, Copy)]
 enum CellPath {
     Z = 0,
-    // N,
-    // E,
-    // S,
-    // W,
     V,
 }
 
@@ -153,14 +132,13 @@ impl MazeRules {
 }
 
 impl Rules for MazeRules {
-    fn on_user_create(&mut self, _painter: &mut Painter) -> bool {
+    fn on_user_create(&mut self, _painter: &mut Painter) {
         self.stack.push((0, 0));
         self.maze[0] = CellPath::V;
         self.visited = 1;
-
-        true
     }
-    fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) -> Option<bool> {
+
+    fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
         painter.fill(0, 0, painter.width, painter.height, ' ', Black);
 
         for x in 0..self.maze_width {
@@ -171,8 +149,6 @@ impl Rules for MazeRules {
                 }
             }
         }
-
-        Some(true)
     }
 }
 
