@@ -71,6 +71,7 @@ where
 }
 
 struct Painter {
+    height: usize,
     screen: Vec<StyledContent<char>>,
     width: usize,
 }
@@ -78,6 +79,7 @@ struct Painter {
 impl Painter {
     fn new(height: usize, width: usize) -> Painter {
         Painter {
+            height,
             screen: vec![' '.with(Black); height * width],
             width,
         }
@@ -87,7 +89,7 @@ impl Painter {
         self.screen[y * self.width + x] = ch.with(color);
     }
 
-    fn _fill(
+    fn fill(
         &mut self,
         x1: usize,
         y1: usize,
@@ -109,69 +111,6 @@ trait Rules {
     fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64) -> Option<bool>;
 }
 
-/*
-struct DemoRules {
-    f_player_x : f64,
-    f_player_y : f64,
-}
-
-impl DemoRules {
-    fn new() -> DemoRules{
-        DemoRules {
-            f_player_x : 10.0,
-            f_player_y : 10.0,
-        }
-    }
-}
-
-impl Rules for DemoRules {
-    fn on_user_create(&mut self, _painter: &mut Painter) -> bool { true }
-    fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64) -> Option<bool> {
-        // todo: extract this into something that gives
-        // on_user_update a list of keys that are pressed?
-        if event::poll(std::time::Duration::from_millis(25)).ok()? {
-            match event::read().ok()? {
-                event::Event::Key(event::KeyEvent {
-                    code: event::KeyCode::Char('a'),
-                    modifiers: event::KeyModifiers::NONE,
-                }) => self.f_player_x = self.f_player_x - 20.0 * elapsed_time,
-                event::Event::Key(event::KeyEvent {
-                    code: event::KeyCode::Char('d'),
-                    modifiers: event::KeyModifiers::NONE,
-                }) => self.f_player_x = self.f_player_x + 20.0  * elapsed_time,
-                event::Event::Key(event::KeyEvent {
-                    code: event::KeyCode::Char('w'),
-                    modifiers: event::KeyModifiers::NONE,
-                }) => self.f_player_y = self.f_player_y - 20.0 * elapsed_time,
-                event::Event::Key(event::KeyEvent {
-                    code: event::KeyCode::Char('s'),
-                    modifiers: event::KeyModifiers::NONE,
-                }) => self.f_player_y = self.f_player_y + 20.0 * elapsed_time,
-                _ => (),
-            }
-        }
-
-        //let mut rng = rand::thread_rng();
-        painter.fill(0, 0, painter.width, painter.height, ' ');
-        painter.fill(self.f_player_x as usize, self.f_player_y as usize, self.f_player_x as usize + 3, self.f_player_y as usize + 3, '▒');
-
-        /*for x in (0..painter.width - 5).step_by(5) {
-            for y in (0..painter.height - 5).step_by(5) {
-                let ch = match rng.gen_range(0..5) {
-                    0 => 'd',
-                    1 => 'r',
-                    2 => 'a',
-                    3 => 'k',
-                    4 => 'e',
-                    _ => ' ',
-                };
-                painter.fill(x, y, x + 5, y + 5, ch);
-            }
-        }*/
-
-        Some(true)
-    }
-}*/
 
 /*enum CellPath {
     Z = 0x00,
@@ -222,7 +161,7 @@ impl Rules for MazeRules {
         true
     }
     fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) -> Option<bool> {
-        //painter.fill(0, 0, painter.width, painter.height, ' ');
+        painter.fill(0, 0, painter.width, painter.height, ' ', Black);
 
         for x in 0..self.maze_width {
             for y in 0..self.maze_height {
@@ -238,7 +177,6 @@ impl Rules for MazeRules {
 }
 
 fn main() -> Result<()> {
-    //let rules = DemoRules::new();
     let rules = MazeRules::new(25, 40);
     let mut game = ConsoleGameEngine::new(40, 120, rules);
     game.construct_console()?;
