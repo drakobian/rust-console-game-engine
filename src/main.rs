@@ -1,5 +1,5 @@
 use crossterm::style::{
-    Color::{Black, Blue, White},
+    Color::{Black, Blue, White, Green},
     StyledContent, Stylize,
 };
 use crossterm::{cursor, execute, terminal, ExecutableCommand, Result};
@@ -51,20 +51,24 @@ where
             let elapsed_time = t_p_2.duration_since(t_p_1).as_secs_f64();
             t_p_1 = t_p_2;
 
-            // get user input (here? will that work?)
+            // todo: get user input (here? will that work?)
 
             self.rules.on_user_update(&mut self.painter, elapsed_time);
 
             // todo: set console title to something
-            //stdout.execute(cursor::MoveTo(0, 0))?;
+            /*stdout.execute(cursor::MoveTo(0, 0))?;
 
-            /*for screen_char in &self.painter.screen {
-                stdout.write(format!("{}", screen_char).as_bytes())?;
+            for screen_char in &self.painter.screen {
+                stdout.write_all(format!("{}", screen_char).as_bytes())?;
             }*/
+
+            // strange, this didn't make things much faster :/
             for coords in &self.painter.diff_coords {
                 stdout.execute(cursor::MoveTo(coords.0 as u16, coords.1 as u16))?;
-                stdout.write(format!("{}", &self.painter.screen[coords.1 * self.width + coords.0]).as_bytes())?;
+                //stdout.write(format!("{}", &self.painter.screen[coords.1 * self.width + coords.0]).as_bytes())?;
+                stdout.write_all(format!("{}", &self.painter.screen[coords.1 * self.width + coords.0]).as_bytes())?;
             }
+            &self.painter.diff_coords.clear();
         }
     }
 }
@@ -87,11 +91,9 @@ impl Painter {
     }
 
     fn draw(&mut self, x: usize, y: usize, ch: char, color: crossterm::style::Color) {
-        if x < self.width && y < self.height {
-            if self.screen[y * self.width + x] != ch.with(color) {
-                self.screen[y * self.width + x] = ch.with(color);
-                self.diff_coords.push((x, y));
-            }
+        if x < self.width && y < self.height && self.screen[y * self.width + x] != ch.with(color) {
+            self.screen[y * self.width + x] = ch.with(color);
+            self.diff_coords.push((x, y));
         }
     }
 
@@ -116,22 +118,6 @@ trait Rules {
     fn on_user_create(&mut self, painter: &mut Painter);
     fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64);
 }
-
-/*#[derive(Clone, Copy, Debug)]
-enum CellPath {
-    Z = 0x00,
-    N = 0x01,
-    E = 0x02,
-    S = 0x04,
-    W = 0x08,
-    V = 0x10,
-}*/
-
-// impl std::ops::BitOrAssign for CellPath {
-//     fn bitor_assign(&mut self, rhs: Self) {
-//         *self |= rhs
-//     }
-// }
 
 struct MazeRules {
     maze: Vec<i32>,
@@ -166,6 +152,8 @@ impl Rules for MazeRules {
     }
 
     fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
+        std::thread::sleep(std::time::Duration::from_millis(2000));
+
         let offset = |x: i32, y: i32, stack_top: (usize, usize), width: usize| -> usize {
             ((stack_top.1 as i32 + y) * width as i32 + stack_top.0 as i32 + x) as usize
         };
@@ -177,7 +165,6 @@ impl Rules for MazeRules {
 
             // north neighbor
             if self.stack.last().unwrap().1 > 0 {
-                // does this actually work to check non-visited cells?
                 if self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] < 0x10 {
                     neighbors.push(0);
                 }
@@ -185,7 +172,6 @@ impl Rules for MazeRules {
 
             // east
             if self.stack.last().unwrap().0 < self.maze_width - 1 {
-                // does this actually work to check non-visited cells?
                 if self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] < 0x10 {
                     neighbors.push(1);
                 }
@@ -193,7 +179,6 @@ impl Rules for MazeRules {
 
             // south
             if self.stack.last().unwrap().1 < self.maze_height - 1 {
-                // does this actually work to check non-visited cells?
                 if self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] < 0x10 {
                     neighbors.push(2);
                 }
@@ -201,57 +186,46 @@ impl Rules for MazeRules {
 
             // west
             if self.stack.last().unwrap().0 > 0 {
-                // does this actually work to check non-visited cells?
                 if self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] < 0x10 {
                     neighbors.push(3);
                 }
             }
 
+            //todo: for some reason, going north then going east doesn't break the wall between west and east
             if !neighbors.is_empty() {
-                // todo: randomize this
-                match neighbors[rng.gen_range(0..neighbors.len())] {//neighbors[0] {
+                match neighbors[rng.gen_range(0..neighbors.len())] {
                     0 => {
                         self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x01;
-                        self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] |= 0x04;
+                        self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] |= (0x04 | 0x10);
                         self.stack.push((self.stack.last().unwrap().0, self.stack.last().unwrap().1 - 1));
-                    }, // north
+                    },
                     1 => {
                         self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x02;
-                        self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x08;
+                        self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] |= (0x08 | 0x10);
                         self.stack.push((self.stack.last().unwrap().0 + 1, self.stack.last().unwrap().1));
-                        //println!("{:?}", self.maze);
-                        //std::thread::sleep(std::time::Duration::from_secs(5));
                     },
                     2 => {
                         self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x04;
-                        self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] |= 0x01;
+                        self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] |= (0x01 | 0x10);
                         self.stack.push((self.stack.last().unwrap().0, self.stack.last().unwrap().1 + 1));
                     },
                     3 => {
                         self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x08;
-                        self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x02;
+                        self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] |= (0x02 | 0x10);
                         self.stack.push((self.stack.last().unwrap().0 - 1, self.stack.last().unwrap().1));
                     },
                     _ => ()
                 }
 
-                // how to do these next two steps for all cases?
-                self.visited = self.visited + 1;
-                self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x10;
+                self.visited += 1;
+                //self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x10;
             } else {
                 self.stack.pop();
             }
         }
+
         //println!("{:?}", self.maze);
-        //println!("{}", offset(0, 0, *self.stack.last().unwrap(), self.maze_width));
-        //println!("{:?}", self.stack);
-        //println!("{:?}", self.maze);
-        //std::thread::sleep(std::time::Duration::from_secs(1));
-        //return
-
-
-
-        // painter.fill(0, 0, painter.width, painter.height, ' ', Black);
+        //return;
 
         for x in 0..self.maze_width {
             for y in 0..self.maze_height {
@@ -261,8 +235,6 @@ impl Rules for MazeRules {
 
                 for px in 0..self.path_width {
                     for py in 0..self.path_width {
-                        // todo: these aren't really going to work as is
-                        // important to check if maze_char > visited here....
                         match maze_char {
                             m_char if m_char & 0x10 == 0x10 => painter.draw(maze_x + px, maze_y + py, '█', White),
                             _ => painter.draw(maze_x + px, maze_y + py, '█', Blue),
@@ -271,8 +243,6 @@ impl Rules for MazeRules {
                 }
 
                 for p in 0..self.path_width {
-                    // todo: this probs won't work either right now...
-                    // because they'll be both visited (0x10) AND East???????
                     match maze_char {
                         m_char if m_char & 0x04 == 0x04 => painter.draw(maze_x + p, maze_y + self.path_width, '█', White),
                         m_char if m_char & 0x02 == 0x02 => painter.draw(maze_x + self.path_width, maze_y + p, '█', White),
@@ -281,17 +251,23 @@ impl Rules for MazeRules {
                 }
             }
         }
+
+        for px in 0..self.path_width {
+            for py in 0..self.path_width {
+                painter.draw(self.stack.last().unwrap().0 * (self.path_width + 1) + px, self.stack.last().unwrap().1 * (self.path_width + 1) + py, '█', Green);
+            }
+        }
     }
 }
 
 fn main() -> Result<()> {
-    let rules = MazeRules::new(13, 39);
-    let mut game = ConsoleGameEngine::new(40, 120, rules);
+    let rules = MazeRules::new(25, 40);
+    let mut game = ConsoleGameEngine::new(100, 160, rules);
     game.construct_console()?;
     game.start()?;
 
     //println!("{:?}", self.maze);
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    //std::thread::sleep(std::time::Duration::from_secs(5));
 
     Ok(())
 }
