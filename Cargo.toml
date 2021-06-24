@@ -9,7 +9,3 @@ edition = "2018"
 [dependencies]
 crossterm = "0.20.0"
 rand = "0.8.4"
-
-[profile.dev]
-opt-level = 3               # Use the most optimizations.
-overflow-checks = false     # Disable integer overflow checks.

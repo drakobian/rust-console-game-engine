@@ -1,10 +1,10 @@
 use crossterm::style::{
-    Color::{Black, Blue, White, Green},
+    Color::{Black, Blue, Green, White},
     StyledContent, Stylize,
 };
 use crossterm::{cursor, execute, terminal, ExecutableCommand, Result};
-use std::io::{stdout, Write};
 use rand::Rng;
+use std::io::{stdout, Write};
 
 struct ConsoleGameEngine<T: Rules> {
     height: usize,
@@ -56,17 +56,13 @@ where
             self.rules.on_user_update(&mut self.painter, elapsed_time);
 
             // todo: set console title to something
-            /*stdout.execute(cursor::MoveTo(0, 0))?;
 
-            for screen_char in &self.painter.screen {
-                stdout.write_all(format!("{}", screen_char).as_bytes())?;
-            }*/
-
-            // strange, this didn't make things much faster :/
             for coords in &self.painter.diff_coords {
                 stdout.execute(cursor::MoveTo(coords.0 as u16, coords.1 as u16))?;
-                //stdout.write(format!("{}", &self.painter.screen[coords.1 * self.width + coords.0]).as_bytes())?;
-                stdout.write_all(format!("{}", &self.painter.screen[coords.1 * self.width + coords.0]).as_bytes())?;
+                stdout.write_all(
+                    format!("{}", &self.painter.screen[coords.1 * self.width + coords.0])
+                        .as_bytes(),
+                )?;
             }
             &self.painter.diff_coords.clear();
         }
@@ -74,7 +70,7 @@ where
 }
 
 struct Painter {
-    diff_coords : Vec<(usize, usize)>,
+    diff_coords: Vec<(usize, usize)>,
     height: usize,
     screen: Vec<StyledContent<char>>,
     width: usize,
@@ -143,16 +139,19 @@ impl MazeRules {
 
 impl Rules for MazeRules {
     fn on_user_create(&mut self, painter: &mut Painter) {
-        self.stack.push((0, 0));
-        self.maze[0] = 0x10;
+        let mut rng = rand::thread_rng();
+        painter.fill(0, 0, painter.width, painter.height, ' ', Black);
+
+        let start_x = rng.gen_range(0..self.maze_width);
+        let start_y = rng.gen_range(0..self.maze_height);
+        self.stack.push((start_x, start_y));
+        self.maze[start_y * self.maze_width + start_x] = 0x10;
         self.visited = 1;
         self.path_width = 2;
-
-        painter.fill(0, 0, painter.width, painter.height, ' ', Black);
     }
 
     fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
-        std::thread::sleep(std::time::Duration::from_millis(2000));
+        std::thread::sleep(std::time::Duration::from_millis(20));
 
         let offset = |x: i32, y: i32, stack_top: (usize, usize), width: usize| -> usize {
             ((stack_top.1 as i32 + y) * width as i32 + stack_top.0 as i32 + x) as usize
@@ -164,68 +163,84 @@ impl Rules for MazeRules {
             let mut neighbors = vec![];
 
             // north neighbor
-            if self.stack.last().unwrap().1 > 0 {
-                if self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] < 0x10 {
-                    neighbors.push(0);
-                }
+            if self.stack.last().unwrap().1 > 0
+                && self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] & 0x10
+                    == 0
+            {
+                neighbors.push(0);
             }
 
             // east
-            if self.stack.last().unwrap().0 < self.maze_width - 1 {
-                if self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] < 0x10 {
-                    neighbors.push(1);
-                }
+            if self.stack.last().unwrap().0 < self.maze_width - 1
+                && self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] & 0x10 == 0
+            {
+                neighbors.push(1);
             }
 
             // south
-            if self.stack.last().unwrap().1 < self.maze_height - 1 {
-                if self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] < 0x10 {
-                    neighbors.push(2);
-                }
+            if self.stack.last().unwrap().1 < self.maze_height - 1
+                && self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] & 0x10 == 0
+            {
+                neighbors.push(2);
             }
 
             // west
-            if self.stack.last().unwrap().0 > 0 {
-                if self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] < 0x10 {
-                    neighbors.push(3);
-                }
+            if self.stack.last().unwrap().0 > 0
+                && self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] & 0x10
+                    == 0
+            {
+                neighbors.push(3);
             }
 
-            //todo: for some reason, going north then going east doesn't break the wall between west and east
             if !neighbors.is_empty() {
                 match neighbors[rng.gen_range(0..neighbors.len())] {
                     0 => {
-                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x01;
-                        self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] |= (0x04 | 0x10);
-                        self.stack.push((self.stack.last().unwrap().0, self.stack.last().unwrap().1 - 1));
-                    },
+                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |=
+                            0x01;
+                        self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] |=
+                            0x04 | 0x10;
+                        self.stack.push((
+                            self.stack.last().unwrap().0,
+                            self.stack.last().unwrap().1 - 1,
+                        ));
+                    }
                     1 => {
-                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x02;
-                        self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] |= (0x08 | 0x10);
-                        self.stack.push((self.stack.last().unwrap().0 + 1, self.stack.last().unwrap().1));
-                    },
+                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |=
+                            0x02;
+                        self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] |=
+                            0x08 | 0x10;
+                        self.stack.push((
+                            self.stack.last().unwrap().0 + 1,
+                            self.stack.last().unwrap().1,
+                        ));
+                    }
                     2 => {
-                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x04;
-                        self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] |= (0x01 | 0x10);
-                        self.stack.push((self.stack.last().unwrap().0, self.stack.last().unwrap().1 + 1));
-                    },
+                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |=
+                            0x04;
+                        self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] |=
+                            0x01 | 0x10;
+                        self.stack.push((
+                            self.stack.last().unwrap().0,
+                            self.stack.last().unwrap().1 + 1,
+                        ));
+                    }
                     3 => {
-                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x08;
-                        self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] |= (0x02 | 0x10);
-                        self.stack.push((self.stack.last().unwrap().0 - 1, self.stack.last().unwrap().1));
-                    },
-                    _ => ()
+                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |=
+                            0x08;
+                        self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] |=
+                            0x02 | 0x10;
+                        self.stack.push((
+                            self.stack.last().unwrap().0 - 1,
+                            self.stack.last().unwrap().1,
+                        ));
+                    }
+                    _ => (),
                 }
-
                 self.visited += 1;
-                //self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |= 0x10;
             } else {
                 self.stack.pop();
             }
         }
-
-        //println!("{:?}", self.maze);
-        //return;
 
         for x in 0..self.maze_width {
             for y in 0..self.maze_height {
@@ -236,17 +251,22 @@ impl Rules for MazeRules {
                 for px in 0..self.path_width {
                     for py in 0..self.path_width {
                         match maze_char {
-                            m_char if m_char & 0x10 == 0x10 => painter.draw(maze_x + px, maze_y + py, '█', White),
+                            m_char if m_char & 0x10 == 0x10 => {
+                                painter.draw(maze_x + px, maze_y + py, '█', White)
+                            }
                             _ => painter.draw(maze_x + px, maze_y + py, '█', Blue),
                         }
                     }
                 }
 
                 for p in 0..self.path_width {
-                    match maze_char {
-                        m_char if m_char & 0x04 == 0x04 => painter.draw(maze_x + p, maze_y + self.path_width, '█', White),
-                        m_char if m_char & 0x02 == 0x02 => painter.draw(maze_x + self.path_width, maze_y + p, '█', White),
-                        _ => ()
+                    let maze_x = x * (self.path_width + 1);
+                    let maze_y = y * (self.path_width + 1);
+                    if maze_char & 0x04 > 0 {
+                        painter.draw(maze_x + p, maze_y + self.path_width, '█', White)
+                    }
+                    if maze_char & 0x02 > 0 {
+                        painter.draw(maze_x + self.path_width, maze_y + p, '█', White)
                     }
                 }
             }
@@ -254,7 +274,12 @@ impl Rules for MazeRules {
 
         for px in 0..self.path_width {
             for py in 0..self.path_width {
-                painter.draw(self.stack.last().unwrap().0 * (self.path_width + 1) + px, self.stack.last().unwrap().1 * (self.path_width + 1) + py, '█', Green);
+                painter.draw(
+                    self.stack.last().unwrap().0 * (self.path_width + 1) + px,
+                    self.stack.last().unwrap().1 * (self.path_width + 1) + py,
+                    '█',
+                    Green,
+                );
             }
         }
     }
@@ -265,9 +290,6 @@ fn main() -> Result<()> {
     let mut game = ConsoleGameEngine::new(100, 160, rules);
     game.construct_console()?;
     game.start()?;
-
-    //println!("{:?}", self.maze);
-    //std::thread::sleep(std::time::Duration::from_secs(5));
 
     Ok(())
 }
