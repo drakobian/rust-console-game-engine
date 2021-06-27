@@ -39,8 +39,6 @@ where
     }
 
     pub fn start(&mut self) -> Result<()> {
-        let mut stdout = stdout();
-
         self.rules.on_user_create(&mut self.painter);
 
         let mut t_p_1 = std::time::Instant::now();
@@ -55,14 +53,7 @@ where
 
             self.rules.on_user_update(&mut self.painter, elapsed_time);
 
-            for coords in &self.painter.diff_coords {
-                stdout.execute(cursor::MoveTo(coords.0 as u16, coords.1 as u16))?;
-                stdout.write_all(
-                    format!("{}", &self.painter.screen[coords.1 * self.width + coords.0])
-                        .as_bytes(),
-                )?;
-            }
-            &self.painter.diff_coords.clear();
+            self.painter.paint()?;
         }
     }
 }
@@ -82,6 +73,20 @@ impl Painter {
             screen: vec![' '.with(Color::Black); height * width],
             width,
         }
+    }
+
+    fn paint(&mut self) -> Result<()> {
+        let mut stdout = stdout();
+        for coords in &self.diff_coords {
+            stdout.execute(cursor::MoveTo(coords.0 as u16, coords.1 as u16))?;
+            stdout.write_all(
+                format!("{}", self.screen[coords.1 * self.width + coords.0])
+                    .as_bytes(),
+            )?;
+        }
+        self.diff_coords.clear();
+
+        Ok(())
     }
 
     pub fn draw(&mut self, x: usize, y: usize, ch: char, color: crossterm::style::Color) {
