@@ -29,9 +29,75 @@ impl MazeRules {
         }
     }
 
+    fn peek(&self) -> (usize, usize) {
+        *self.stack.last().unwrap()
+    }
+
     fn offset(&self, x: i32, y: i32) -> usize {
-        let stack_top = self.stack.last().unwrap();
-        ((stack_top.1 as i32 + y) * self.maze_width as i32 + stack_top.0 as i32 + x) as usize
+        let (x1, y1) = self.peek();
+        ((y1 as i32 + y) * self.maze_width as i32 + x1 as i32 + x) as usize
+    }
+
+    fn get_unvisited_neighbors(&self) -> Vec<usize>{
+        let mut neighbors = vec![];
+        let (x, y) = self.peek();
+
+        // north neighbor
+        if y > 0 && self.maze[self.offset(0, -1)] & VISITED == 0 {
+            neighbors.push(0);
+        }
+
+        // east
+        if x < self.maze_width - 1 && self.maze[self.offset(1, 0)] & VISITED == 0 {
+            neighbors.push(1);
+        }
+
+        // south
+        if y < self.maze_height - 1 && self.maze[self.offset(0, 1)] & VISITED == 0 {
+            neighbors.push(2);
+        }
+
+        // west
+        if x > 0 && self.maze[self.offset(-1, 0)] & VISITED == 0 {
+            neighbors.push(3);
+        }
+
+        neighbors
+    }
+
+    fn visit_next_neighbor(&mut self, neighbors: Vec<usize>) {
+        let center = self.offset(0, 0);
+        let north = self.offset(0, -1);
+        let east = self.offset(1, 0);
+        let west = self.offset(-1, 0);
+        let south = self.offset(0, 1);
+        let (x, y) = self.peek();
+
+        let mut rng = rand::thread_rng();
+        match neighbors[rng.gen_range(0..neighbors.len())] {
+            0 => {
+                self.maze[center] |= NORTH;
+                self.maze[north] |= SOUTH | VISITED;
+                self.stack.push((x, y - 1));
+            }
+            1 => {
+                self.maze[center] |= EAST;
+                self.maze[east] |= WEST | VISITED;
+                self.stack.push((x + 1, y));
+            }
+            2 => {
+                self.maze[center] |= SOUTH;
+                self.maze[south] |= NORTH | VISITED;
+                self.stack.push((x, y + 1));
+            }
+            3 => {
+                self.maze[center] |= WEST;
+                self.maze[west] |= EAST | VISITED;
+                self.stack.push((x - 1, y));
+            }
+            _ => (),
+        }
+        self.visited += 1;
     }
 }
 
@@ -51,63 +117,11 @@ impl Rules for MazeRules {
     fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
         std::thread::sleep(std::time::Duration::from_millis(20));
 
-        let mut rng = rand::thread_rng();
-
         if self.visited < self.maze_width * self.maze_height {
-            let last_x = self.stack.last().unwrap().0;
-            let last_y = self.stack.last().unwrap().1;
-            let mut neighbors = vec![];
-
-            // north neighbor
-            if last_y > 0 && self.maze[self.offset(0, -1)] & VISITED == 0 {
-                neighbors.push(0);
-            }
-
-            // east
-            if last_x < self.maze_width - 1 && self.maze[self.offset(1, 0)] & VISITED == 0 {
-                neighbors.push(1);
-            }
-
-            // south
-            if last_y < self.maze_height - 1 && self.maze[self.offset(0, 1)] & VISITED == 0 {
-                neighbors.push(2);
-            }
-
-            // west
-            if last_x > 0 && self.maze[self.offset(-1, 0)] & VISITED == 0 {
-                neighbors.push(3);
-            }
+            let neighbors = self.get_unvisited_neighbors();
 
             if !neighbors.is_empty() {
-                let center = self.offset(0, 0);
-                let north = self.offset(0, -1);
-                let east = self.offset(1, 0);
-                let west = self.offset(-1, 0);
-                let south = self.offset(0, 1);
-                match neighbors[rng.gen_range(0..neighbors.len())] {
-                    0 => {
-                        self.maze[center] |= NORTH;
-                        self.maze[north] |= SOUTH | VISITED;
-                        self.stack.push((last_x, last_y - 1));
-                    }
-                    1 => {
-                        self.maze[center] |= EAST;
-                        self.maze[east] |= WEST | VISITED;
-                        self.stack.push((last_x + 1, last_y));
-                    }
-                    2 => {
-                        self.maze[center] |= SOUTH;
-                        self.maze[south] |= NORTH | VISITED;
-                        self.stack.push((last_x, last_y + 1));
-                    }
-                    3 => {
-                        self.maze[center] |= WEST;
-                        self.maze[west] |= EAST | VISITED;
-                        self.stack.push((last_x - 1, last_y));
-                    }
-                    _ => (),
-                }
-                self.visited += 1;
+                self.visit_next_neighbor(neighbors);
             } else {
                 self.stack.pop();
             }
