@@ -64,7 +64,7 @@ where
 
             self.rules.on_user_update(&mut self.utils, elapsed_time);
 
-            //self.utils.draw_screen()?;
+            self.utils.draw_screen()?;
         }
     }
 }
