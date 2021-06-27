@@ -1,4 +1,4 @@
-use game_engine::{Color, ConsoleGameEngine, Painter, Result, Rules};
+use olc_rust_game_engine::{Color, ConsoleGameEngine, Painter, Result, Rules};
 use rand::Rng;
 
 const EMPTY: i32 = 0x00;

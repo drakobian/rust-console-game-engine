@@ -1,3 +1,11 @@
+//! # Rust OlcConsoleGameEngine
+//!
+//! `game_engine` is an attempt at a rust port of 
+//! [Javidx9's](https://www.youtube.com/channel/UC-yuWVUplUJZvieEligKBkA)
+//! [Console Game Engine](https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h)
+//! 
+//! Better docs *definitely* coming soon 😁
+
 use crossterm::style::{StyledContent, Stylize};
 use crossterm::{cursor, execute, terminal, ExecutableCommand};
 use std::io::{stdout, Write};
