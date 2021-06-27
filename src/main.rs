@@ -1,119 +1,5 @@
-use crossterm::style::{
-    Color::{Black, Blue, Green, White},
-    StyledContent, Stylize,
-};
-use crossterm::{cursor, execute, terminal, ExecutableCommand, Result};
 use rand::Rng;
-use std::io::{stdout, Write};
-
-struct ConsoleGameEngine<T: Rules> {
-    height: usize,
-    painter: Painter,
-    rules: T,
-    width: usize,
-}
-
-impl<T> ConsoleGameEngine<T>
-where
-    T: Rules,
-{
-    fn new(height: usize, width: usize, rules: T) -> ConsoleGameEngine<T> {
-        ConsoleGameEngine {
-            height,
-            painter: Painter::new(height, width),
-            rules,
-            width,
-        }
-    }
-
-    fn construct_console(&self) -> Result<()> {
-        execute!(
-            stdout(),
-            terminal::SetSize(self.width as u16, self.height as u16),
-            cursor::DisableBlinking,
-            cursor::Hide
-        )?;
-        terminal::enable_raw_mode().unwrap(); // is this necessary?
-
-        Ok(())
-    }
-
-    fn start(&mut self) -> Result<()> {
-        let mut stdout = stdout();
-
-        self.rules.on_user_create(&mut self.painter);
-
-        let mut t_p_1 = std::time::Instant::now();
-        let mut t_p_2: std::time::Instant;
-
-        loop {
-            t_p_2 = std::time::Instant::now();
-            let elapsed_time = t_p_2.duration_since(t_p_1).as_secs_f64();
-            t_p_1 = t_p_2;
-
-            // todo: get user input (here? will that work?)
-
-            self.rules.on_user_update(&mut self.painter, elapsed_time);
-
-            // todo: set console title to something
-
-            for coords in &self.painter.diff_coords {
-                stdout.execute(cursor::MoveTo(coords.0 as u16, coords.1 as u16))?;
-                stdout.write_all(
-                    format!("{}", &self.painter.screen[coords.1 * self.width + coords.0])
-                        .as_bytes(),
-                )?;
-            }
-            &self.painter.diff_coords.clear();
-        }
-    }
-}
-
-struct Painter {
-    diff_coords: Vec<(usize, usize)>,
-    height: usize,
-    screen: Vec<StyledContent<char>>,
-    width: usize,
-}
-
-impl Painter {
-    fn new(height: usize, width: usize) -> Painter {
-        Painter {
-            diff_coords: vec![],
-            height,
-            screen: vec![' '.with(Black); height * width],
-            width,
-        }
-    }
-
-    fn draw(&mut self, x: usize, y: usize, ch: char, color: crossterm::style::Color) {
-        if x < self.width && y < self.height && self.screen[y * self.width + x] != ch.with(color) {
-            self.screen[y * self.width + x] = ch.with(color);
-            self.diff_coords.push((x, y));
-        }
-    }
-
-    fn fill(
-        &mut self,
-        x1: usize,
-        y1: usize,
-        x2: usize,
-        y2: usize,
-        ch: char,
-        color: crossterm::style::Color,
-    ) {
-        for x in x1..x2 {
-            for y in y1..y2 {
-                self.draw(x, y, ch, color);
-            }
-        }
-    }
-}
-
-trait Rules {
-    fn on_user_create(&mut self, painter: &mut Painter);
-    fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64);
-}
+use game_engine::{Color, ConsoleGameEngine, Painter, Result, Rules};
 
 const EMPTY: i32 = 0x00;
 const NORTH: i32 = 0x01;
@@ -152,7 +38,7 @@ impl MazeRules {
 impl Rules for MazeRules {
     fn on_user_create(&mut self, painter: &mut Painter) {
         let mut rng = rand::thread_rng();
-        painter.fill(0, 0, painter.width, painter.height, ' ', Black);
+        painter.fill(0, 0, painter.width, painter.height, ' ', Color::Black);
 
         let start_x = rng.gen_range(0..self.maze_width);
         let start_y = rng.gen_range(0..self.maze_height);
@@ -237,9 +123,9 @@ impl Rules for MazeRules {
                     for py in 0..self.path_width {
                         match maze_char {
                             m_char if m_char & VISITED == VISITED => {
-                                painter.draw(maze_x + px, maze_y + py, '█', White)
+                                painter.draw(maze_x + px, maze_y + py, '█', Color::White)
                             }
-                            _ => painter.draw(maze_x + px, maze_y + py, '█', Blue),
+                            _ => painter.draw(maze_x + px, maze_y + py, '█', Color::Blue),
                         }
                     }
                 }
@@ -248,10 +134,10 @@ impl Rules for MazeRules {
                     let maze_x = x * (self.path_width + 1);
                     let maze_y = y * (self.path_width + 1);
                     if maze_char & SOUTH > 0 {
-                        painter.draw(maze_x + p, maze_y + self.path_width, '█', White)
+                        painter.draw(maze_x + p, maze_y + self.path_width, '█', Color::White)
                     }
                     if maze_char & EAST > 0 {
-                        painter.draw(maze_x + self.path_width, maze_y + p, '█', White)
+                        painter.draw(maze_x + self.path_width, maze_y + p, '█', Color::White)
                     }
                 }
             }
@@ -263,7 +149,7 @@ impl Rules for MazeRules {
                     self.stack.last().unwrap().0 * (self.path_width + 1) + px,
                     self.stack.last().unwrap().1 * (self.path_width + 1) + py,
                     '█',
-                    Green,
+                    Color::Green,
                 );
             }
         }
