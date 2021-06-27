@@ -1,11 +1,9 @@
-use crossterm::style::{
-    StyledContent, Stylize,
-};
+use crossterm::style::{StyledContent, Stylize};
 use crossterm::{cursor, execute, terminal, ExecutableCommand};
 use std::io::{stdout, Write};
 
-pub use crossterm::Result;
 pub use crossterm::style::Color;
+pub use crossterm::Result;
 
 pub struct ConsoleGameEngine<T: Rules> {
     height: usize,

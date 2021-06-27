@@ -1,5 +1,5 @@
-use rand::Rng;
 use game_engine::{Color, ConsoleGameEngine, Painter, Result, Rules};
+use rand::Rng;
 
 const EMPTY: i32 = 0x00;
 const NORTH: i32 = 0x01;
