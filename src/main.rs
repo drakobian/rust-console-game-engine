@@ -135,6 +135,11 @@ impl MazeRules {
             visited: 0,
         }
     }
+
+    fn offset(&self, x: i32, y: i32) -> usize {
+        let stack_top = self.stack.last().unwrap();
+        ((stack_top.1 as i32 + y) * self.maze_width as i32 + stack_top.0 as i32 + x) as usize
+    }
 }
 
 impl Rules for MazeRules {
@@ -153,9 +158,9 @@ impl Rules for MazeRules {
     fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
         std::thread::sleep(std::time::Duration::from_millis(20));
 
-        let offset = |x: i32, y: i32, stack_top: (usize, usize), width: usize| -> usize {
-            ((stack_top.1 as i32 + y) * width as i32 + stack_top.0 as i32 + x) as usize
-        };
+        /*let self.offset = |x: i32, y: i32, stack_top: (usize, usize)| -> usize {
+            ((stack_top.1 as i32 + y) * self.maze_width as i32 + stack_top.0 as i32 + x) as usize
+        };*/
 
         let mut rng = rand::thread_rng();
 
@@ -163,72 +168,63 @@ impl Rules for MazeRules {
             let mut neighbors = vec![];
 
             // north neighbor
-            if self.stack.last().unwrap().1 > 0
-                && self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] & 0x10
-                    == 0
-            {
+            if self.stack.last().unwrap().1 > 0 && self.maze[self.offset(0, -1)] & 0x10 == 0 {
                 neighbors.push(0);
             }
 
             // east
             if self.stack.last().unwrap().0 < self.maze_width - 1
-                && self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] & 0x10 == 0
+                && self.maze[self.offset(1, 0)] & 0x10 == 0
             {
                 neighbors.push(1);
             }
 
             // south
             if self.stack.last().unwrap().1 < self.maze_height - 1
-                && self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] & 0x10 == 0
+                && self.maze[self.offset(0, 1)] & 0x10 == 0
             {
                 neighbors.push(2);
             }
 
             // west
-            if self.stack.last().unwrap().0 > 0
-                && self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] & 0x10
-                    == 0
-            {
+            if self.stack.last().unwrap().0 > 0 && self.maze[self.offset(-1, 0)] & 0x10 == 0 {
                 neighbors.push(3);
             }
 
             if !neighbors.is_empty() {
+                let center = self.offset(0, 0);
+                let north = self.offset(0, -1);
+                let east = self.offset(1, 0);
+                let west = self.offset(-1, 0);
+                let south = self.offset(0, 1);
                 match neighbors[rng.gen_range(0..neighbors.len())] {
                     0 => {
-                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |=
-                            0x01;
-                        self.maze[offset(0, -1, *self.stack.last().unwrap(), self.maze_width)] |=
-                            0x04 | 0x10;
+                        self.maze[center] |= 0x01;
+                        self.maze[north] |= 0x04 | 0x10;
                         self.stack.push((
                             self.stack.last().unwrap().0,
                             self.stack.last().unwrap().1 - 1,
                         ));
                     }
                     1 => {
-                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |=
-                            0x02;
-                        self.maze[offset(1, 0, *self.stack.last().unwrap(), self.maze_width)] |=
-                            0x08 | 0x10;
+                        self.maze[center] |= 0x02;
+                        self.maze[east] |= 0x08 | 0x10;
                         self.stack.push((
                             self.stack.last().unwrap().0 + 1,
                             self.stack.last().unwrap().1,
                         ));
                     }
                     2 => {
-                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |=
-                            0x04;
-                        self.maze[offset(0, 1, *self.stack.last().unwrap(), self.maze_width)] |=
-                            0x01 | 0x10;
+                        self.maze[center] |= 0x04;
+                        self.maze[south] |= 0x01 | 0x10;
                         self.stack.push((
                             self.stack.last().unwrap().0,
                             self.stack.last().unwrap().1 + 1,
                         ));
                     }
                     3 => {
-                        self.maze[offset(0, 0, *self.stack.last().unwrap(), self.maze_width)] |=
-                            0x08;
-                        self.maze[offset(-1, 0, *self.stack.last().unwrap(), self.maze_width)] |=
-                            0x02 | 0x10;
+                        self.maze[center] |= 0x08;
+                        self.maze[west] |= 0x02 | 0x10;
                         self.stack.push((
                             self.stack.last().unwrap().0 - 1,
                             self.stack.last().unwrap().1,
