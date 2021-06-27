@@ -99,34 +99,8 @@ impl MazeRules {
         }
         self.visited += 1;
     }
-}
 
-impl Rules for MazeRules {
-    fn on_user_create(&mut self, painter: &mut Painter) {
-        let mut rng = rand::thread_rng();
-        painter.fill(0, 0, painter.width, painter.height, ' ', Color::Black);
-
-        let start_x = rng.gen_range(0..self.maze_width);
-        let start_y = rng.gen_range(0..self.maze_height);
-        self.stack.push((start_x, start_y));
-        self.maze[start_y * self.maze_width + start_x] = VISITED;
-        self.visited = 1;
-        self.path_width = 2;
-    }
-
-    fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
-        std::thread::sleep(std::time::Duration::from_millis(20));
-
-        if self.visited < self.maze_width * self.maze_height {
-            let neighbors = self.get_unvisited_neighbors();
-
-            if !neighbors.is_empty() {
-                self.visit_next_neighbor(neighbors);
-            } else {
-                self.stack.pop();
-            }
-        }
-
+    fn draw_maze(&self, painter: &mut Painter) {
         for x in 0..self.maze_width {
             for y in 0..self.maze_height {
                 let maze_x = x * (self.path_width + 1);
@@ -167,6 +141,36 @@ impl Rules for MazeRules {
                 );
             }
         }
+    }
+}
+
+impl Rules for MazeRules {
+    fn on_user_create(&mut self, painter: &mut Painter) {
+        let mut rng = rand::thread_rng();
+        painter.fill(0, 0, painter.width, painter.height, ' ', Color::Black);
+
+        let start_x = rng.gen_range(0..self.maze_width);
+        let start_y = rng.gen_range(0..self.maze_height);
+        self.stack.push((start_x, start_y));
+        self.maze[start_y * self.maze_width + start_x] = VISITED;
+        self.visited = 1;
+        self.path_width = 2;
+    }
+
+    fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+
+        if self.visited < self.maze_width * self.maze_height {
+            let neighbors = self.get_unvisited_neighbors();
+
+            if !neighbors.is_empty() {
+                self.visit_next_neighbor(neighbors);
+            } else {
+                self.stack.pop();
+            }
+        }
+
+        self.draw_maze(painter);
     }
 }
 
