@@ -115,6 +115,13 @@ trait Rules {
     fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64);
 }
 
+const EMPTY: i32 = 0x00;
+const NORTH: i32 = 0x01;
+const EAST: i32 = 0x02;
+const SOUTH: i32 = 0x04;
+const WEST: i32 = 0x08;
+const VISITED: i32 = 0x10;
+
 struct MazeRules {
     maze: Vec<i32>,
     maze_height: usize,
@@ -127,7 +134,7 @@ struct MazeRules {
 impl MazeRules {
     fn new(maze_height: usize, maze_width: usize) -> MazeRules {
         MazeRules {
-            maze: vec![0x00; maze_height * maze_width],
+            maze: vec![EMPTY; maze_height * maze_width],
             maze_height,
             maze_width,
             path_width: 1,
@@ -150,7 +157,7 @@ impl Rules for MazeRules {
         let start_x = rng.gen_range(0..self.maze_width);
         let start_y = rng.gen_range(0..self.maze_height);
         self.stack.push((start_x, start_y));
-        self.maze[start_y * self.maze_width + start_x] = 0x10;
+        self.maze[start_y * self.maze_width + start_x] = VISITED;
         self.visited = 1;
         self.path_width = 2;
     }
@@ -158,36 +165,30 @@ impl Rules for MazeRules {
     fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
         std::thread::sleep(std::time::Duration::from_millis(20));
 
-        /*let self.offset = |x: i32, y: i32, stack_top: (usize, usize)| -> usize {
-            ((stack_top.1 as i32 + y) * self.maze_width as i32 + stack_top.0 as i32 + x) as usize
-        };*/
-
         let mut rng = rand::thread_rng();
 
         if self.visited < self.maze_width * self.maze_height {
+            let last_x = self.stack.last().unwrap().0;
+            let last_y = self.stack.last().unwrap().1;
             let mut neighbors = vec![];
 
             // north neighbor
-            if self.stack.last().unwrap().1 > 0 && self.maze[self.offset(0, -1)] & 0x10 == 0 {
+            if last_y > 0 && self.maze[self.offset(0, -1)] & VISITED == 0 {
                 neighbors.push(0);
             }
 
             // east
-            if self.stack.last().unwrap().0 < self.maze_width - 1
-                && self.maze[self.offset(1, 0)] & 0x10 == 0
-            {
+            if last_x < self.maze_width - 1 && self.maze[self.offset(1, 0)] & VISITED == 0 {
                 neighbors.push(1);
             }
 
             // south
-            if self.stack.last().unwrap().1 < self.maze_height - 1
-                && self.maze[self.offset(0, 1)] & 0x10 == 0
-            {
+            if last_y < self.maze_height - 1 && self.maze[self.offset(0, 1)] & VISITED == 0 {
                 neighbors.push(2);
             }
 
             // west
-            if self.stack.last().unwrap().0 > 0 && self.maze[self.offset(-1, 0)] & 0x10 == 0 {
+            if last_x > 0 && self.maze[self.offset(-1, 0)] & VISITED == 0 {
                 neighbors.push(3);
             }
 
@@ -199,36 +200,24 @@ impl Rules for MazeRules {
                 let south = self.offset(0, 1);
                 match neighbors[rng.gen_range(0..neighbors.len())] {
                     0 => {
-                        self.maze[center] |= 0x01;
-                        self.maze[north] |= 0x04 | 0x10;
-                        self.stack.push((
-                            self.stack.last().unwrap().0,
-                            self.stack.last().unwrap().1 - 1,
-                        ));
+                        self.maze[center] |= NORTH;
+                        self.maze[north] |= SOUTH | VISITED;
+                        self.stack.push((last_x, last_y - 1));
                     }
                     1 => {
-                        self.maze[center] |= 0x02;
-                        self.maze[east] |= 0x08 | 0x10;
-                        self.stack.push((
-                            self.stack.last().unwrap().0 + 1,
-                            self.stack.last().unwrap().1,
-                        ));
+                        self.maze[center] |= EAST;
+                        self.maze[east] |= WEST | VISITED;
+                        self.stack.push((last_x + 1, last_y));
                     }
                     2 => {
-                        self.maze[center] |= 0x04;
-                        self.maze[south] |= 0x01 | 0x10;
-                        self.stack.push((
-                            self.stack.last().unwrap().0,
-                            self.stack.last().unwrap().1 + 1,
-                        ));
+                        self.maze[center] |= SOUTH;
+                        self.maze[south] |= NORTH | VISITED;
+                        self.stack.push((last_x, last_y + 1));
                     }
                     3 => {
-                        self.maze[center] |= 0x08;
-                        self.maze[west] |= 0x02 | 0x10;
-                        self.stack.push((
-                            self.stack.last().unwrap().0 - 1,
-                            self.stack.last().unwrap().1,
-                        ));
+                        self.maze[center] |= WEST;
+                        self.maze[west] |= EAST | VISITED;
+                        self.stack.push((last_x - 1, last_y));
                     }
                     _ => (),
                 }
@@ -247,7 +236,7 @@ impl Rules for MazeRules {
                 for px in 0..self.path_width {
                     for py in 0..self.path_width {
                         match maze_char {
-                            m_char if m_char & 0x10 == 0x10 => {
+                            m_char if m_char & VISITED == VISITED => {
                                 painter.draw(maze_x + px, maze_y + py, '█', White)
                             }
                             _ => painter.draw(maze_x + px, maze_y + py, '█', Blue),
@@ -258,10 +247,10 @@ impl Rules for MazeRules {
                 for p in 0..self.path_width {
                     let maze_x = x * (self.path_width + 1);
                     let maze_y = y * (self.path_width + 1);
-                    if maze_char & 0x04 > 0 {
+                    if maze_char & SOUTH > 0 {
                         painter.draw(maze_x + p, maze_y + self.path_width, '█', White)
                     }
-                    if maze_char & 0x02 > 0 {
+                    if maze_char & EAST > 0 {
                         painter.draw(maze_x + self.path_width, maze_y + p, '█', White)
                     }
                 }
