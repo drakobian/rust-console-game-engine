@@ -9,13 +9,14 @@
 use crossterm::style::{StyledContent, Stylize};
 use crossterm::{cursor, execute, terminal, ExecutableCommand};
 use std::io::{stdout, Write};
+use keyboard_query::{DeviceQuery, DeviceState};
 
 pub use crossterm::style::Color;
 pub use crossterm::Result;
 
 pub struct ConsoleGameEngine<T: Rules> {
     height: usize,
-    painter: Painter,
+    utils: Utils,
     rules: T,
     width: usize,
 }
@@ -27,7 +28,7 @@ where
     pub fn new(height: usize, width: usize, rules: T) -> ConsoleGameEngine<T> {
         ConsoleGameEngine {
             height,
-            painter: Painter::new(height, width),
+            utils: Utils::new(height, width),
             rules,
             width,
         }
@@ -47,43 +48,47 @@ where
     }
 
     pub fn start(&mut self) -> Result<()> {
-        self.rules.on_user_create(&mut self.painter);
+        self.rules.on_user_create(&mut self.utils);
 
         let mut t_p_1 = std::time::Instant::now();
         let mut t_p_2: std::time::Instant;
+
+        let device_state = DeviceState::new();
 
         loop {
             t_p_2 = std::time::Instant::now();
             let elapsed_time = t_p_2.duration_since(t_p_1).as_secs_f64();
             t_p_1 = t_p_2;
+            
+            self.utils.keys = device_state.get_keys();
 
-            // todo: get user input (here? will that work?)
+            self.rules.on_user_update(&mut self.utils, elapsed_time);
 
-            self.rules.on_user_update(&mut self.painter, elapsed_time);
-
-            self.painter.paint()?;
+            //self.utils.draw_screen()?;
         }
     }
 }
 
-pub struct Painter {
+pub struct Utils {
     diff_coords: Vec<(usize, usize)>,
     pub height: usize,
+    pub keys : Vec<u16>,
     screen: Vec<StyledContent<char>>,
     pub width: usize,
 }
 
-impl Painter {
-    fn new(height: usize, width: usize) -> Painter {
-        Painter {
+impl Utils {
+    fn new(height: usize, width: usize) -> Utils {
+        Utils {
             diff_coords: vec![],
             height,
+            keys: vec![],
             screen: vec![' '.with(Color::Black); height * width],
             width,
         }
     }
 
-    fn paint(&mut self) -> Result<()> {
+    pub fn draw_screen(&mut self) -> Result<()> {
         let mut stdout = stdout();
         for coords in &self.diff_coords {
             stdout.execute(cursor::MoveTo(coords.0 as u16, coords.1 as u16))?;
@@ -122,6 +127,6 @@ impl Painter {
 }
 
 pub trait Rules {
-    fn on_user_create(&mut self, painter: &mut Painter);
-    fn on_user_update(&mut self, painter: &mut Painter, elapsed_time: f64);
+    fn on_user_create(&mut self, utils: &mut Utils);
+    fn on_user_update(&mut self, utils: &mut Utils, elapsed_time: f64);
 }

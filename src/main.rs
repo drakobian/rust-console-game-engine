@@ -1,4 +1,4 @@
-use olc_rust_game_engine::{Color, ConsoleGameEngine, Painter, Result, Rules};
+use olc_rust_game_engine::{Color, ConsoleGameEngine, Utils, Result, Rules};
 use rand::Rng;
 
 const EMPTY: i32 = 0x00;
@@ -100,7 +100,7 @@ impl MazeRules {
         self.visited += 1;
     }
 
-    fn draw_maze(&self, painter: &mut Painter) {
+    fn draw_maze(&self, utils: &mut Utils) {
         for x in 0..self.maze_width {
             for y in 0..self.maze_height {
                 let maze_x = x * (self.path_width + 1);
@@ -111,9 +111,9 @@ impl MazeRules {
                     for py in 0..self.path_width {
                         match maze_char {
                             m_char if m_char & VISITED == VISITED => {
-                                painter.draw(maze_x + px, maze_y + py, '█', Color::White)
+                                utils.draw(maze_x + px, maze_y + py, '█', Color::White)
                             }
-                            _ => painter.draw(maze_x + px, maze_y + py, '█', Color::Blue),
+                            _ => utils.draw(maze_x + px, maze_y + py, '█', Color::Blue),
                         }
                     }
                 }
@@ -122,10 +122,10 @@ impl MazeRules {
                     let maze_x = x * (self.path_width + 1);
                     let maze_y = y * (self.path_width + 1);
                     if maze_char & SOUTH > 0 {
-                        painter.draw(maze_x + p, maze_y + self.path_width, '█', Color::White)
+                        utils.draw(maze_x + p, maze_y + self.path_width, '█', Color::White)
                     }
                     if maze_char & EAST > 0 {
-                        painter.draw(maze_x + self.path_width, maze_y + p, '█', Color::White)
+                        utils.draw(maze_x + self.path_width, maze_y + p, '█', Color::White)
                     }
                 }
             }
@@ -133,7 +133,7 @@ impl MazeRules {
 
         for px in 0..self.path_width {
             for py in 0..self.path_width {
-                painter.draw(
+                utils.draw(
                     self.stack.last().unwrap().0 * (self.path_width + 1) + px,
                     self.stack.last().unwrap().1 * (self.path_width + 1) + py,
                     '█',
@@ -145,9 +145,9 @@ impl MazeRules {
 }
 
 impl Rules for MazeRules {
-    fn on_user_create(&mut self, painter: &mut Painter) {
+    fn on_user_create(&mut self, utils: &mut Utils) {
         let mut rng = rand::thread_rng();
-        painter.fill(0, 0, painter.width, painter.height, ' ', Color::Black);
+        utils.fill(0, 0, utils.width, utils.height, ' ', Color::Black);
 
         let start_x = rng.gen_range(0..self.maze_width);
         let start_y = rng.gen_range(0..self.maze_height);
@@ -157,7 +157,7 @@ impl Rules for MazeRules {
         self.path_width = 2;
     }
 
-    fn on_user_update(&mut self, painter: &mut Painter, _elapsed_time: f64) {
+    fn on_user_update(&mut self, utils: &mut Utils, _elapsed_time: f64) {
         std::thread::sleep(std::time::Duration::from_millis(20));
 
         if self.visited < self.maze_width * self.maze_height {
@@ -170,7 +170,7 @@ impl Rules for MazeRules {
             }
         }
 
-        self.draw_maze(painter);
+        self.draw_maze(utils);
     }
 }
 
