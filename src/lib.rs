@@ -88,6 +88,16 @@ impl Utils {
         }
     }
 
+    pub fn redraw_screen(&mut self) -> Result<()> {
+        let mut stdout = stdout();
+        stdout.execute(cursor::MoveTo(0, 0))?;
+        for screen_char in &self.screen {
+            stdout.write(format!("{}", screen_char).as_bytes())?;
+        }
+
+        Ok(())
+    }
+
     pub fn draw_screen(&mut self) -> Result<()> {
         let mut stdout = stdout();
         for coords in &self.diff_coords {
