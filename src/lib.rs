@@ -1,15 +1,15 @@
 //! # Rust OlcConsoleGameEngine
 //!
-//! `game_engine` is an attempt at a rust port of 
+//! `game_engine` is an attempt at a rust port of
 //! [Javidx9's](https://www.youtube.com/channel/UC-yuWVUplUJZvieEligKBkA)
 //! [Console Game Engine](https://github.com/OneLoneCoder/videos/blob/master/olcConsoleGameEngine.h)
-//! 
+//!
 //! Better docs *definitely* coming soon 😁
 
-use crossterm::style::{StyledContent, Stylize};
-use crossterm::{cursor, execute, terminal, ExecutableCommand};
-use std::io::{stdout, Write};
+use crossterm::style::{Print, StyledContent, Stylize};
+use crossterm::{cursor, execute, terminal};
 use keyboard_query::{DeviceQuery, DeviceState};
+use std::io::stdout;
 
 pub use crossterm::style::Color;
 pub use crossterm::Result;
@@ -59,12 +59,16 @@ where
             t_p_2 = std::time::Instant::now();
             let elapsed_time = t_p_2.duration_since(t_p_1).as_secs_f64();
             t_p_1 = t_p_2;
-            
+
             self.utils.keys = device_state.get_keys();
 
             self.rules.on_user_update(&mut self.utils, elapsed_time);
 
-            if redraw {self.utils.redraw_screen()? } else { self.utils.draw_screen()? };
+            if redraw {
+                self.utils.redraw_screen()?
+            } else {
+                self.utils.draw_screen()?
+            };
         }
     }
 }
@@ -72,7 +76,7 @@ where
 pub struct Utils {
     diff_coords: Vec<(usize, usize)>,
     pub height: usize,
-    pub keys : Vec<u16>,
+    pub keys: Vec<u16>,
     screen: Vec<StyledContent<char>>,
     pub width: usize,
 }
@@ -89,22 +93,19 @@ impl Utils {
     }
 
     pub fn redraw_screen(&mut self) -> Result<()> {
-        let mut stdout = stdout();
-        stdout.execute(cursor::MoveTo(0, 0))?;
-        for screen_char in &self.screen {
-            stdout.write(format!("{}", screen_char).as_bytes())?;
-        }
+        let scr: String = self.screen.iter().map(|&x| format!("{}", x)).collect();
+
+        execute!(stdout(), cursor::MoveTo(0, 0), Print(scr))?;
 
         Ok(())
     }
 
     pub fn draw_screen(&mut self) -> Result<()> {
-        let mut stdout = stdout();
         for coords in &self.diff_coords {
-            stdout.execute(cursor::MoveTo(coords.0 as u16, coords.1 as u16))?;
-            stdout.write_all(
-                format!("{}", self.screen[coords.1 * self.width + coords.0])
-                    .as_bytes(),
+            execute!(
+                stdout(),
+                cursor::MoveTo(coords.0 as u16, coords.1 as u16),
+                Print(self.screen[coords.1 * self.width + coords.0])
             )?;
         }
         self.diff_coords.clear();

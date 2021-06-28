@@ -1,6 +1,6 @@
 [package]
 name = "olc_rust_game_engine"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["drakobian <drake.bennion@gmail.com>"]
 edition = "2018"
 description = "A Rust beginner's port of a console game engine"
