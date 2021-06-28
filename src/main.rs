@@ -178,7 +178,7 @@ fn main() -> Result<()> {
     let rules = MazeRules::new(25, 40);
     let mut game = ConsoleGameEngine::new(100, 160, rules);
     game.construct_console()?;
-    game.start()?;
+    game.start(false)?;
 
     Ok(())
 }

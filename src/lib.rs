@@ -47,7 +47,7 @@ where
         Ok(())
     }
 
-    pub fn start(&mut self) -> Result<()> {
+    pub fn start(&mut self, redraw: bool) -> Result<()> {
         self.rules.on_user_create(&mut self.utils);
 
         let mut t_p_1 = std::time::Instant::now();
@@ -64,7 +64,7 @@ where
 
             self.rules.on_user_update(&mut self.utils, elapsed_time);
 
-            self.utils.draw_screen()?;
+            if redraw {self.utils.redraw_screen()? } else { self.utils.draw_screen()? };
         }
     }
 }
