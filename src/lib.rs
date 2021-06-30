@@ -113,22 +113,24 @@ impl Utils {
         Ok(())
     }
 
-    pub fn draw(&mut self, x: usize, y: usize, ch: char, color: crossterm::style::Color) {
+    pub fn draw_string(&mut self, x: usize, y: usize, draw_str: &str, color: Color, alpha: bool) {
+        for (i, c) in draw_str.chars().enumerate() {
+            if alpha && c == ' ' {
+                continue;
+            }
+
+            self.draw(x + i, y, c, color);
+        }
+    }
+
+    pub fn draw(&mut self, x: usize, y: usize, ch: char, color: Color) {
         if x < self.width && y < self.height && self.screen[y * self.width + x] != ch.with(color) {
             self.screen[y * self.width + x] = ch.with(color);
             self.diff_coords.push((x, y));
         }
     }
 
-    pub fn fill(
-        &mut self,
-        x1: usize,
-        y1: usize,
-        x2: usize,
-        y2: usize,
-        ch: char,
-        color: crossterm::style::Color,
-    ) {
+    pub fn fill(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, ch: char, color: Color) {
         for x in x1..x2 {
             for y in y1..y2 {
                 self.draw(x, y, ch, color);
