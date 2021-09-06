@@ -10,19 +10,26 @@
 extern crate glium;
 
 use glium::{glutin, Surface};
-use std::io::Cursor;
 
-use crossterm::style::{Print, StyledContent, Stylize};
-use crossterm::{cursor, execute, terminal};
 use keyboard_query::{DeviceQuery, DeviceState};
-use std::io::stdout;
 
-pub use crossterm::style::Color;
-pub use crossterm::Result;
+use std::error::Error;
+
+#[derive(Copy, Clone)]
+pub enum Color {
+    Black,
+    White,
+    Red,
+    Green,
+    Blue,
+    DarkGrey,
+    DarkGreen,
+    DarkYellow,
+    DarkBlue,
+}
 
 pub struct ConsoleGameEngine {
     height: usize,
-    //utils: 
     width: usize,
 }
 
@@ -30,7 +37,6 @@ pub struct ConsoleGameEngine {
 pub struct Vertex {
     position: [f32; 2],
     color: [f32; 3],
-    //tex_coords: [f32; 2],
 }
 
 impl ConsoleGameEngine
@@ -38,25 +44,11 @@ impl ConsoleGameEngine
     pub fn new(height: usize, width: usize) -> ConsoleGameEngine {
         ConsoleGameEngine {
             height,
-            //util
             width,
         }
     }
 
-    pub fn construct_console(&self) -> Result<()> {
-        // todo: set console title to something
-        execute!(
-            stdout(),
-            terminal::SetSize(self.width as u16, self.height as u16),
-            cursor::DisableBlinking,
-            cursor::Hide
-        )?;
-        terminal::enable_raw_mode().unwrap(); // is this necessary?
-
-        Ok(())
-    }
-
-    pub fn start(self, rules: &'static mut dyn Rules) -> Result<()> {
+    pub fn start(self, rules: &'static mut dyn Rules) -> Result<(), Box<dyn Error>> {
         
         implement_vertex!(Vertex, position, color);
 
@@ -85,7 +77,7 @@ impl ConsoleGameEngine
             }
         "#;
 
-        let mut event_loop = glutin::event_loop::EventLoop::new();
+        let event_loop = glutin::event_loop::EventLoop::new();
         let wb = glutin::window::WindowBuilder::new().with_title("Game time!");
         //.with_inner_size(glutin::dpi::LogicalSize::new(1024.0, 768.0));
         let cb = glutin::ContextBuilder::new();
@@ -98,9 +90,9 @@ impl ConsoleGameEngine
 
         let mut t_p_1 = std::time::Instant::now();
         
+        // todo: replace this by using glutin to get keyboard input
         let device_state = DeviceState::new();
 
-        //loop {
         event_loop.run(move |ev, _, control_flow| {
 
             match ev {
@@ -122,8 +114,7 @@ impl ConsoleGameEngine
             let next_frame_time = std::time::Instant::now() + std::time::Duration::from_nanos(16);
             *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
-            //let mut t_p_2: std::time::Instant::now();
-            let mut t_p_2 = std::time::Instant::now();
+            let t_p_2 = std::time::Instant::now();
             let elapsed_time = t_p_2.duration_since(t_p_1).as_secs_f64();
             t_p_1 = t_p_2;
 
@@ -132,33 +123,22 @@ impl ConsoleGameEngine
             rules.on_user_update(&mut utils, elapsed_time);
 
             let mut target = display.draw();
-            //target.clear_color(0., 0., 0.2, 1.0);
-
-            //println!("{}", &utils.index_buffer.len());
-            //println!("{}", &utils.vertex_buffer.len());
             let indices = glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList, &utils.index_buffer).unwrap();
             let vertex_buffer = glium::VertexBuffer::new(&display, &utils.vertex_buffer).unwrap();
 
             target.draw(&vertex_buffer, &indices, &program, &uniform!{}, &Default::default()).unwrap();
             
-            // now clear the index buffer and vertex_buffer on utils??
             utils.vertex_buffer.clear();
             utils.index_buffer.clear();
-            //println!("{}", &utils.index_buffer.len());
-            //println!("{}", &utils.vertex_buffer.len());
-            //return;
             
             target.finish().unwrap();
         });
-        //}
     }
 }
 
 pub struct Utils {
-    diff_coords: Vec<(usize, usize)>,
     pub height: usize,
     pub keys: Vec<u16>,
-    screen: Vec<StyledContent<char>>,
     pub width: usize,
     pub index_buffer: Vec<u16>,
     pub vertex_buffer: Vec<Vertex>,
@@ -167,48 +147,26 @@ pub struct Utils {
 impl Utils {
     fn new(height: usize, width: usize) -> Utils {
         Utils {
-            diff_coords: vec![],
             height,
             keys: vec![],
-            screen: vec![' '.with(Color::Black); height * width],
             width,
             index_buffer: vec![],
             vertex_buffer: vec![],
         }
     }
 
-    pub fn redraw_screen(&mut self) -> Result<()> {
-        let scr: String = self.screen.iter().map(|&x| format!("{}", x)).collect();
-
-        execute!(stdout(), cursor::MoveTo(0, 0), Print(scr))?;
-
-        Ok(())
-    }
-
-    pub fn draw_screen(&mut self) -> Result<()> {
-        for coords in &self.diff_coords {
-            execute!(
-                stdout(),
-                cursor::MoveTo(coords.0 as u16, coords.1 as u16),
-                Print(self.screen[coords.1 * self.width + coords.0])
-            )?;
-        }
-        self.diff_coords.clear();
-
-        Ok(())
-    }
-
+    // todo: figure out how to write text in opengl
     pub fn draw_string(&mut self, x: usize, y: usize, draw_str: &str, color: Color, alpha: bool) {
         for (i, c) in draw_str.chars().enumerate() {
             if alpha && c == ' ' {
                 continue;
             }
 
-            self.draw(x + i, y, c, color);
+            self.draw(x + i, y, color);
         }
     }
 
-    pub fn draw(&mut self, x: usize, y: usize, ch: char, c_color: Color) {
+    pub fn draw(&mut self, x: usize, y: usize, color: Color) {
         //hmm how scale
         let x_scale = 13. / 800.;
         let y_scale = 15. / 600.;
@@ -217,7 +175,7 @@ impl Utils {
         let right = (x as f32 + 1.) * x_scale;
         let down = (y as f32 + 1.) * y_scale;
 
-        let color = match c_color {
+        let color = match color {
             Color::Black => [0., 0., 0.],
             Color::Red => [1., 0., 0.],
             Color::Green => [0., 1., 0.],
@@ -243,10 +201,10 @@ impl Utils {
         self.index_buffer.push(start_ind + 3);
     }
 
-    pub fn fill(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, ch: char, color: Color) {
+    pub fn fill(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, color: Color) {
         for x in x1..x2 {
             for y in y1..y2 {
-                self.draw(x, y, ch, color);
+                self.draw(x, y, color);
             }
         }
     }
